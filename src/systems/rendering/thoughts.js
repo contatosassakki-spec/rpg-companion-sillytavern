@@ -17,6 +17,7 @@ import {
 import { saveChatData, saveSettings } from '../../core/persistence.js';
 import { getSafeThumbnailUrl } from '../../utils/avatars.js';
 import { isItemLocked, setItemLock } from '../generation/lockManager.js';
+import { regenerateAvatar, isGenerating } from '../features/avatarGenerator.js';
 
 /**
  * Helper to generate lock icon HTML if setting is enabled
@@ -501,6 +502,7 @@ export function renderThoughts() {
                                 <div class="rpg-character-header">
                                     <span class="rpg-character-emoji rpg-editable" contenteditable="true" data-character="${char.name}" data-field="emoji" title="Click to edit emoji">${char.emoji}</span>
                                     <span class="rpg-character-name rpg-editable" contenteditable="true" data-character="${char.name}" data-field="name" title="Click to edit name">${char.name}</span>
+                                    <button class="rpg-character-regenerate" data-character="${char.name}" title="Regenerate avatar">🔄</button>
                                     <button class="rpg-character-remove" data-character="${char.name}" title="Remove character">×</button>
                                 </div>
                 `;
@@ -638,6 +640,29 @@ export function renderThoughts() {
 
         const characterName = $(this).data('character');
         removeCharacter(characterName);
+    });
+
+    // Add event listener for regenerate avatar button
+    $thoughtsContainer.find('.rpg-character-regenerate').on('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const charName = $(this).data('character');
+        if (isGenerating(charName)) {
+            return; // Already generating
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('⏳');
+
+        try {
+            await regenerateAvatar(charName);
+            renderThoughts(); // Refresh to show new avatar
+        } catch (error) {
+            console.error('[RPG Thoughts] Avatar regeneration error:', error);
+        } finally {
+            $btn.prop('disabled', false).html('🔄');
+        }
     });
 
     // Add event listener for avatar upload clicks
